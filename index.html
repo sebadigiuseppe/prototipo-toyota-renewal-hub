@@ -49,10 +49,10 @@ ol{padding-left:20px;margin:6px 0}
 <div><label for="nuevo">Modelo 0 km a ofrecer</label><select id="nuevo"></select></div>
 <div><label for="fuente">Fuente del valor del usado</label><select id="fuente"><option value="cca">Guía CCA (datos reales)</option><option value="inf">Infoauto (datos de prueba)</option></select></div>
 </div>
-<div id="cpick" class="grid" style="margin-top:10px" hidden>
-<div><label for="cm">Modelo</label><select id="cm"></select></div>
-<div><label for="cv">Versión</label><select id="cv"></select></div>
-<div><label for="ca">Año</label><select id="ca"></select></div>
+<div id="cpick" class="grid" style="margin-top:10px">
+<div><label for="cm">Guía CCA: modelo</label><select id="cm"></select></div>
+<div><label for="cv">Guía CCA: versión</label><select id="cv"></select></div>
+<div><label for="ca">Guía CCA: año</label><select id="ca"></select></div>
 </div>
 <p id="refs" class="mute" style="margin:10px 0 0"></p>
 </section>
@@ -106,6 +106,7 @@ var NUEVOS=[
  {id:"yar",nombre:"Yaris XLS 1.5 CVT",precio:31900000,promo:{texto:"TASA 12% hasta $15.000.000",tasa:12,tope:15000000}},
  {id:"hil",nombre:"Hilux SRV 2.8 4x4 AT",precio:68900000,promo:null}
 ];
+CCA.filas.forEach(function(r,i){if(r[2]["0km"])NUEVOS.push({id:"c"+i,nombre:r[0]+" "+r[1],precio:r[2]["0km"]*1000,promo:null,cca:true})});
 var LINKS=[
  {t:"Guía de precios Infoauto",u:"https://www.infoauto.com.ar"},
  {t:"Guía de precios CCA",u:"https://www.cca.org.ar"},
@@ -166,12 +167,14 @@ var elegido=0;
 
 /* ===== PANTALLA ===== */
 function iniciar(){
- $("usado").innerHTML=USADOS.map(function(u){return '<option value="'+u.id+'">'+esc(u.nombre)+"</option>"}).join("")+'<option value="__cca">Otro vehículo de la guía CCA…</option>';
- $("nuevo").innerHTML='<option value="">Mostrar todas las alternativas</option>'+NUEVOS.map(function(n){return '<option value="'+n.id+'">'+esc(n.nombre)+"</option>"}).join("");
+ $("usado").innerHTML=USADOS.map(function(u){return '<option value="'+u.id+'">'+esc(u.nombre)+"</option>"}).join("")+'<option value="__cca">Vehículo elegido en la guía CCA (campos de abajo)</option>';
+ function op(n){return '<option value="'+n.id+'">'+esc(n.nombre)+"</option>"}
+ $("nuevo").innerHTML='<option value="">Mostrar las alternativas con promoción (prueba)</option><optgroup label="Con promoción de prueba">'+NUEVOS.filter(function(n){return !n.cca}).map(op).join("")+'</optgroup><optgroup label="Guía CCA (precio 0 km, sin promoción cargada)">'+NUEVOS.filter(function(n){return n.cca}).map(op).join("")+'</optgroup>';
  $("pct").value=cfg.pct;
- ["cli","tel","usado","nuevo","fuente","ca"].forEach(function(i){$(i).addEventListener("input",function(){elegido=0;dibujar()})});
- $("cm").addEventListener("input",function(){verCv();elegido=0;dibujar()});
- $("cv").addEventListener("input",function(){verCa();elegido=0;dibujar()});
+ ["cli","tel","usado","nuevo","fuente"].forEach(function(i){$(i).addEventListener("input",function(){elegido=0;dibujar()})});
+ $("cm").addEventListener("input",function(){$("usado").value="__cca";verCv();elegido=0;dibujar()});
+ $("cv").addEventListener("input",function(){$("usado").value="__cca";verCa();elegido=0;dibujar()});
+ $("ca").addEventListener("input",function(){$("usado").value="__cca";elegido=0;dibujar()});
  $("pct").addEventListener("input",function(){var v=parseFloat($("pct").value);if(!isNaN(v)&&v>=0&&v<=60){cfg.pct=v;guardar();dibujar()}});
  $("reset").addEventListener("click",function(){cfg=Object.assign({},DEFECTO);guardar();$("pct").value=cfg.pct;dibujar()});
  initCca();
@@ -179,10 +182,10 @@ function iniciar(){
  $("wa").addEventListener("click",abrirWa);
  dibujar();
 }
-function lista(){var s=$("nuevo").value;return s?NUEVOS.filter(function(n){return n.id===s}):NUEVOS}
+function lista(){var s=$("nuevo").value;return s?NUEVOS.filter(function(n){return n.id===s}):NUEVOS.filter(function(n){return !n.cca})}
 
 function dibujar(){
- $("cpick").hidden=$("usado").value!=="__cca";
+ 
  var u=usadoSel(),L=lista();
  refs(u);
  if(elegido>=L.length)elegido=0;
