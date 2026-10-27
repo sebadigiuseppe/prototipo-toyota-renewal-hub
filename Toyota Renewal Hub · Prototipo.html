@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toyota Renewal Hub · Prototipo</title>
+<style>
+:root{--bg:#f2f3f5;--card:#fff;--ink:#1b1f24;--mute:#5d6672;--line:#d9dde3;--acc:#c8102e;--warn:#fff3cd;--warnink:#664d03;--ok:#e8f4ec}
+@media (prefers-color-scheme:dark){:root{--bg:#14171b;--card:#1d2127;--ink:#eceff3;--mute:#9aa4b0;--line:#323941;--acc:#ff5a70;--warn:#3d3210;--warnink:#f5d98a;--ok:#1b2d22}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:8px 0 2px}h2{font-size:16px;margin:0 0 10px}
+.sub{color:var(--mute);margin:0 0 12px}
+.test{background:var(--warn);color:var(--warnink);padding:8px 12px;border-radius:6px;margin-bottom:14px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+label{display:block;font-size:13px;color:var(--mute);margin-bottom:3px}
+input,select,textarea,button{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%}
+button{cursor:pointer;width:auto;font-weight:600}
+button.p{background:var(--ink);color:var(--card);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;color:var(--mute);font-weight:600}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.sel{background:var(--ok)}
+.big{color:var(--acc);font-weight:700}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+ol{padding-left:20px;margin:6px 0}
+.mute{color:var(--mute);font-size:13px}
+.msg{min-height:230px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<h1>Toyota Renewal Hub</h1>
+<p class="sub">Prototipo para armar propuestas de renovación</p>
+<div class="test"><strong>Datos mixtos.</strong> Los valores de la guía CCA son reales (edición Octubre 2026). Los valores de Infoauto, los precios 0 km y las promociones son de prueba. No usar para operaciones reales.</div>
+
+<section class="card">
+<h2>1. Datos del caso</h2>
+<div class="grid">
+<div><label for="cli">Cliente</label><input id="cli" value="Juan Pérez"></div>
+<div><label for="tel">Teléfono (WhatsApp)</label><input id="tel" value="379 15 4123456" inputmode="tel"></div>
+<div><label for="usado">Vehículo actual del cliente</label><select id="usado"></select></div>
+<div><label for="nuevo">Modelo 0 km a ofrecer</label><select id="nuevo"></select></div>
+<div><label for="fuente">Fuente del valor del usado</label><select id="fuente"><option value="cca">Guía CCA (datos reales)</option><option value="inf">Infoauto (datos de prueba)</option></select></div>
+</div>
+<div id="cpick" class="grid" style="margin-top:10px" hidden>
+<div><label for="cm">Modelo</label><select id="cm"></select></div>
+<div><label for="cv">Versión</label><select id="cv"></select></div>
+<div><label for="ca">Año</label><select id="ca"></select></div>
+</div>
+<p id="refs" class="mute" style="margin:10px 0 0"></p>
+</section>
+
+<section class="card">
+<h2>2. Ajustes de cálculo</h2>
+<div class="grid">
+<div><label for="pct">Descuento de toma sobre el valor Infoauto (%)</label><input id="pct" type="number" min="0" max="60" step="0.5"></div>
+<div style="align-self:end"><button id="reset" type="button">Restaurar valores por defecto</button></div>
+</div>
+<p class="mute">Los ajustes se guardan en este navegador.</p>
+</section>
+
+<section class="card">
+<h2>3. Alternativas de renovación</h2>
+<div class="wrap"><table>
+<thead><tr><th>Modelo 0 km</th><th class="n">Precio</th><th class="n">Usado (toma est.)</th><th class="n">Diferencia</th><th>Promoción</th><th class="n">Financiable</th><th class="n">Saldo</th><th></th></tr></thead>
+<tbody id="tb"></tbody></table></div>
+</section>
+
+<section class="card">
+<h2>4. Cómo se calculó</h2>
+<div id="como"></div>
+</section>
+
+<section class="card">
+<h2>5. Mensaje para WhatsApp</h2>
+<label for="msg">Podés editar el texto antes de enviarlo</label>
+<textarea id="msg" class="msg"></textarea>
+<div class="row">
+<button id="copiar" class="p" type="button">Copiar texto</button>
+<button id="wa" type="button">Abrir WhatsApp</button>
+<span id="estado" class="mute" role="status" style="align-self:center"></span>
+</div>
+</section>
+</main>
+
+<script>
+/* ===== DATOS DE PRUEBA ===== */
+/* Guía CCA, Octubre 2026. Valores en miles de pesos. Solo modelos Toyota y años 2018 en adelante. Fila: [modelo, versión, {año o 0km: valor}] */
+var CCA={mes:"Octubre 2026",filas:[["Corolla","4P 1,8 XLI MT 2017",{"2019":19781,"2018":18316}],["Corolla","4P 1,8 XLI CVT 2017",{"2019":20637,"2018":19108}],["Corolla","4P 1,8 XEI MT 2017",{"2019":22631,"2018":20955}],["Corolla","4P 1,8 XEI CVT 2017",{"2019":23487,"2018":21748}],["Corolla","4P 1,8 XEI MT PACK 2017",{"2019":23299,"2018":21573}],["Corolla","4P 1,8 XEI CVT PACK 2017",{"2019":24324,"2018":22522}],["Corolla","4P 1,8 SEG MT 2017",{"2019":25295,"2018":23422}],["Corolla","4P 1,8 SEG CVT 2017",{"2019":26320,"2018":24370}],["Corolla","4P 2,0 XLI MT 2020",{"2023":24511,"2022":23104,"2021":22004,"2020":20956}],["Corolla","4P 2,0 XLI CVT 2020",{"2023":25794,"2022":24313,"2021":23156,"2020":22053}],["Corolla","4P 2,0 XEI MT 2020",{"2023":27436,"2022":25861,"2021":24629,"2020":23457}],["Corolla","4P 2,0 XEI CVT 2020",{"2023":28720,"2022":27072,"2021":25783,"2020":24555}],["Corolla","4P 2,0 SEG CVT 2020",{"2023":34486,"2022":32506,"2021":30958,"2020":29484,"2019":28010}],["Corolla","4P 2,0 GR-S 10CVT",{"2023":32309,"2022":30454,"2021":29004}],["Corolla","4P HV 1,8 XEI CVT 2020",{"2023":30486,"2022":28736,"2021":27367,"2020":26064}],["Corolla","4P HV 1,8 SEG CVT 2020",{"2023":35990,"2022":33924,"2021":32308,"2020":30770,"2019":29231}],["Corolla","4P 2,0 XLI CVT 2024",{"2025":28733,"2024":27365,"2023":26544}],["Corolla","4P 2,0 XEI CVT 2024",{"2025":31993,"2024":30469,"2023":29555}],["Corolla","4P 2,0 SEG CVT 2024",{"2025":38415,"2024":36586,"2023":35488}],["Corolla","4P 2,0 GR-S 10CVT 2024",{"2025":35990,"2024":34277,"2023":33248}],["Corolla","4P HEV 1,8 XEI eCVT 2024",{"2025":33959,"2024":32342,"2023":31372}],["Corolla","4P HEV 1,8 SEG eCVT 2024",{"2025":38724,"2024":36880,"2023":35773}],["Corolla","4P 2,0 XLI CVT SAFETY 2025",{"0km":44082,"2025":30170}],["Corolla","4P 2,0 XEI CVT SAFETY 2025",{"0km":48410,"2025":33593}],["Corolla","4P 2,0 SEG CVT SAFETY 2025",{"0km":54392,"2025":40336}],["Corolla","4P 2,0 GR-S 10CVT SAFETY 2025",{"0km":55439,"2025":37790}],["Corolla","4P HEV 1,8 XEI eCVT SAFETY 2025",{"0km":50764,"2025":35657}],["Corolla","4P HEV 1,8 SEG eCVT SAFETY 2025",{"0km":56180,"2025":40660}],["Corolla Cross","5P 2,0 XLI CVT",{"2023":28564,"2022":27204,"2021":25909}],["Corolla Cross","5P 2,0 XEI CVT",{"2023":35277,"2022":33597,"2021":31997}],["Corolla Cross","5P 2,0 SEG CVT",{"2023":37984,"2022":36176,"2021":34453}],["Corolla Cross","5P HEV 1,8 XEI eCVT",{"2023":32011,"2022":30486,"2021":29035}],["Corolla Cross","5P HEV 1,8 SEG eCVT",{"2023":36773,"2022":35022,"2021":33355}],["Corolla Cross","5P 2,0 GR-SPORT CVT",{"2023":39806,"2022":37911}],["Corolla Cross","5P 2,0 XLI CVT 2024",{"2025":32466,"2024":30920,"2023":29993}],["Corolla Cross","5P 2,0 XEI CVT 2024",{"2025":40096,"2024":38187,"2023":37041}],["Corolla Cross","5P 2,0 SEG CVT 2024",{"2025":43173,"2024":41117,"2023":39884}],["Corolla Cross","5P HEV 1,8 XEI eCVT 2024",{"2025":36383,"2024":34651,"2023":33611}],["Corolla Cross","5P HEV 1,8 SEG eCVT 2024",{"2025":41797,"2024":39806,"2023":38612}],["Corolla Cross","5P 2,0 GR-SPORT CVT 2024",{"2025":45244,"2024":43089,"2023":41797}],["Corolla Cross","5P 2,0 XLI CVT 2027",{"0km":51918}],["Corolla Cross","5P 2,0 XEI CVT 2027",{"0km":56263}],["Corolla Cross","5P 2,0 SEG CVT 2027",{"0km":61732}],["Corolla Cross","5P HEV 1,8 XEI eCVT 2027",{"0km":57355}],["Corolla Cross","5P HEV 1,8 SEG eCVT 2027",{"0km":63684}],["Corolla Cross","5P 2,0 GR-SPORT CVT 2027",{"0km":64083}],["Etios","5P 1,5 X 6MT 2017",{"2018":13737}],["Etios","5P 1,5 XS 6MT 2017",{"2018":14324}],["Etios","5P 1,5 XLS 6MT 2017",{"2018":15409}],["Etios","5P 1,5 XLS 4AT 2017",{"2018":16282}],["Etios","5P 1,5 PLATINUM 6MT 2017",{"2018":16666}],["Etios","5P 1,5 PLATINUM 4AT 2017",{"2018":17552}],["Etios","5P 1,5 X 6MT 2018",{"2020":15004,"2019":14831,"2018":13992}],["Etios","5P 1,5 XLS 6MT 2018",{"2020":16830,"2019":16636,"2018":15695}],["Etios","5P 1,5 XLS 4AT 2018",{"2020":17783,"2019":17578,"2018":16583}],["Etios","5P 1,5 PLATINUM 4AT 2018",{"2020":19169,"2019":18949,"2018":17876}],["Etios","5P 1,5 X 6MT 2021",{"2023":18405,"2022":17213,"2021":16555,"2020":15921}],["Etios","5P 1,5 XLS 6MT 2021",{"2023":21607,"2022":20207,"2021":19435,"2020":18691}],["Etios","5P 1,5 XLS PACK 6MT 2022",{"2023":22687,"2022":21217}],["Etios","5P 1,5 XLS 4AT 2021",{"2023":22617,"2022":21151,"2021":20344,"2020":19565}],["Etios","5P 1,5 XLS PACK 4AT 2022",{"2023":23748,"2022":22209}],["Etios","5P 1,5 AIBO 6MT 2022",{"2023":16672,"2022":15591}],["Etios","4P 1,5 X 6MT 2017",{"2018":14366}],["Etios","4P 1,5 XS 6MT 2017",{"2018":14822}],["Etios","4P 1,5 XLS 6MT 2017",{"2018":15907}],["Etios","4P 1,5 XLS 4AT 2017",{"2018":16785}],["Etios","4P 1,5 PLATINUM 6MT 2017",{"2018":17164}],["Etios","4P 1,5 PLATINUM 4AT 2017",{"2018":18055}],["Etios","4P 1,5 X 6MT 2018",{"2020":15690,"2019":15509,"2018":14632}],["Etios","4P 1,5 XLS 6MT 2018",{"2020":17374,"2019":17174,"2018":16202}],["Etios","4P 1,5 XLS 4AT 2018",{"2020":18332,"2019":18121,"2018":17096}],["Etios","4P 1,5 PLATINUM 4AT 2018",{"2020":19718,"2019":19491,"2018":18387}],["Etios","4P 1,5 X 6MT 2021",{"2023":19575,"2022":18307,"2021":17608,"2020":16934}],["Etios","4P 1,5 XLS 6MT 2021",{"2023":22207,"2022":20768,"2021":19975,"2020":19210}],["Etios","4P 1,5 XLS PACK 6MT 2022",{"2023":23318,"2022":21806}],["Etios","4P 1,5 XLS 4AT 2021",{"2023":23218,"2022":21713,"2021":20884,"2020":20084}],["Etios","4P 1,5 XLS PACK 4AT 2022",{"2023":24379,"2022":22799}],["Hilux","C/S 2,4 TDi 4X2 DX 6MT 2016",{"2018":21122}],["Hilux","D/C 2,4 TDi 4X2 STD 6MT 2016",{"2018":24395}],["Hilux","D/C 2,4 TDi 4X2 DX 6MT 2016",{"2018":26241}],["Hilux","D/C 2,4 TDi 4X2 SR 6MT 2016",{"2018":28737}],["Hilux","D/C 2,8 TDi 4X2 SRV 6MT 2016",{"2018":31894}],["Hilux","D/C 2,8 TDi 4X2 SRV 6AT 2017",{"2018":33271}],["Hilux","D/C 2,8 TDi 4X2 SRV PACK 6MT 2016",{"2018":33439}],["Hilux","D/C 2,8 TDi 4X2 SRX 6MT 2017",{"2018":35526}],["Hilux","D/C 2,8 TDi 4X2 SRX 6AT 2017",{"2018":38120}],["Hilux","C/S 2,4 TDi 4X4 DX 6MT 2016",{"2018":25208}],["Hilux","D/C 2,4 TDi 4X4 DX 6MT 2016",{"2018":30523}],["Hilux","D/C 2,8 TDi 4X4 SR 6MT 2016",{"2018":33713}],["Hilux","D/C 2,8 TDi 4X4 SRV 6MT 2016",{"2018":36175}],["Hilux","D/C 2,8 TDi 4X4 SRV 6AT 2016",{"2018":38355}],["Hilux","D/C 2,8 TDi 4X4 SRX 6MT 2016",{"2018":39961}],["Hilux","D/C 2,8 TDi 4X4 SRX 6AT 2016",{"2018":42142}],["Hilux","D/C 2,8 TDi 4X4 LIMITED 6MT 2017",{"2018":38233}],["Hilux","D/C 2,8 TDi 4X4 LIMITED 6AT 2017",{"2018":40884}],["Hilux","C/S 2,4 TDi 4X2 DX 6MT 2019",{"2019":22185,"2018":21747}],["Hilux","D/C 2,4 TDi 4X2 DX 6MT 2019",{"2019":27997,"2018":27570}],["Hilux","D/C 2,4 TDi 4X2 SR 6MT 2019",{"2019":30789,"2018":30180}],["Hilux","D/C 2,8 TDi 4X2 SRV 6MT 2019",{"2019":34159,"2018":33484}],["Hilux","D/C 2,8 TDi 4X2 SRV 6AT 2019",{"2019":35657,"2018":34952}],["Hilux","D/C 2,8 TDi 4X2 SRX 6MT 2019",{"2019":38071,"2018":37318}],["Hilux","D/C 2,8 TDi 4X2 SRX 6AT 2019",{"2019":40817,"2018":40009}],["Hilux","C/S 2,4 TDi 4X4 DX 6MT 2019",{"2019":27007,"2018":26473}],["Hilux","D/C 2,4 TDi 4X4 DX 6MT 2019",{"2019":32703,"2018":32057}],["Hilux","D/C 2,8 TDi 4X4 SR 6MT 2019",{"2019":36115,"2018":35401}],["Hilux","D/C 2,8 TDi 4X4 SRV 6MT 2019",{"2019":38736,"2018":37970}],["Hilux","D/C 2,8 TDi 4X4 SRV 6AT 2019",{"2019":41066,"2018":40254}],["Hilux","D/C 2,8 TDi 4X4 SRX 6MT 2019",{"2019":42814,"2018":41967}],["Hilux","D/C 2,8 TDi 4X4 SRX 6AT 2019",{"2019":45144,"2018":44251}],["Hilux","D/C 2,8 TDi 4X4 GR-S 6MT 2019",{"2019":47095,"2018":46164}],["Hilux","D/C 2,8 TDi 4X4 GR-S 6AT 2019",{"2019":49658,"2018":48676}],["Hilux","C/S 2,4 TDi 4X2 DX 6MT 2020",{"2020":22917,"2019":22435}],["Hilux","D/C 2,4 TDi 4X2 DX 6MT 2020",{"2020":27487,"2019":26910}],["Hilux","D/C 2,4 TDi 4X2 SR 6MT 2020",{"2020":31532,"2019":30869}],["Hilux","D/C 2,8 TDi 4X2 SRV 6MT 2020",{"2020":35518,"2019":34771}],["Hilux","D/C 2,8 TDi 4X2 SRV 6AT 2020",{"2020":37294,"2019":36510}],["Hilux","D/C 2,8 TDi 4X2 SRX 6MT 2020",{"2020":40255,"2019":39409}],["Hilux","D/C 2,8 TDi 4X2 SRX 6AT 2020",{"2020":42031,"2019":41147}],["Hilux","C/S 2,4 TDi 4X4 DX 6MT 2020",{"2020":27403,"2019":26827}],["Hilux","D/C 2,4 TDi 4X4 DX 6MT 2020",{"2020":32187,"2019":31510}],["Hilux","D/C 2,8 TDi 4X4 SR 6MT 2020",{"2020":36951,"2019":36175}],["Hilux","D/C 2,8 TDi 4X4 SRV 6MT 2020",{"2020":40218,"2019":39372}],["Hilux","D/C 2,8 TDi 4X4 SRV 6AT 2020",{"2020":42571,"2019":41676}],["Hilux","D/C 2,8 TDi 4X4 SRX 6MT 2020",{"2020":44954,"2019":44010}],["Hilux","D/C 2,8 TDi 4X4 SRX 6AT 2020",{"2020":47308,"2019":46314}],["Hilux","D/C 2,8 TDi 4X4 GR-S 6MT 2020",{"2020":48902,"2019":47874}],["Hilux","D/C 2,8 TDi 4X4 GR-S 6AT 2020",{"2020":51283,"2019":50205}],["Hilux","D/C V6 VVTi 4X4 GR-S II 6AT 2020",{"2020":51283,"2019":50205}],["Hilux","C/C 2,4 TDi 4X2 DX 6MT 2021",{"2023":26858,"2022":25579,"2021":24595,"2020":23424}],["Hilux","C/S 2,4 TDi 4X2 DX 6MT 2021",{"2023":28317,"2022":26969,"2021":25932,"2020":24697}],["Hilux","D/C 2,4 TDi 4X2 DX 6MT 2021",{"2023":33023,"2022":31451,"2021":30241,"2020":28801}],["Hilux","D/C 2,4 TDi 4X2 SR 6MT 2021",{"2023":37847,"2022":36045,"2021":34659,"2020":33008}],["Hilux","D/C 2,4 TDi 4X2 SR 6AT 2022",{"2023":39139,"2022":37276}],["Hilux","D/C 2,8 TDi 4X2 SRV 6MT 2021",{"2023":44166,"2022":42063,"2021":40445,"2020":38519}],["Hilux","D/C 2,8 TDi 4X2 SRV 6AT 2021",{"2023":46399,"2022":44190,"2021":42490,"2020":40467}],["Hilux","D/C 2,8 TDi 4X2 SRX 6MT 2021",{"2023":50279,"2022":47885,"2021":46043,"2020":43851}],["Hilux","D/C 2,8 TDi 4X2 SRX 6AT 2021",{"2023":52512,"2022":50012,"2021":48088,"2020":45798}],["Hilux","C/C 2,4 TDi 4X4 DX 6MT 2021",{"2023":32138,"2022":30608,"2021":29431,"2020":28029}],["Hilux","C/S 2,4 TDi 4X4 DX 6MT 2021",{"2023":33598,"2022":31998,"2021":30767,"2020":29302}],["Hilux","D/C 2,4 TDi 4X4 DX 6MT 2021",{"2023":38555,"2022":36719,"2021":35307,"2020":33625}],["Hilux","D/C 2,8 TDi 4X4 SR 6MT 2021",{"2023":45356,"2022":43196,"2021":41535,"2020":39557}],["Hilux","D/C 2,8 TDi 4X4 SR 6AT 2022",{"2023":46903,"2022":44669}],["Hilux","D/C 2,8 TDi 4X4 SRV 6MT 2021",{"2023":49698,"2022":47331,"2021":45511,"2020":43344}],["Hilux","D/C 2,8 TDi 4X4 SRV 6AT 2021",{"2023":52645,"2022":50138,"2021":48210,"2020":45914}],["Hilux","D/C 2,8 TDi 4X4 SRX 6MT 2021",{"2023":55811,"2022":53153,"2021":51109,"2020":48675}],["Hilux","D/C 2,8 TDi 4X4 SRX 6AT 2021",{"2023":58745,"2022":55947,"2021":53795,"2020":51234}],["Hilux","D/C 2,8 TDi 4X4 GR-S III 6AT 2022",{"2023":61094,"2022":58185}],["Hilux","D/C 2,8 TDi 4X4 GR-S IV 6AT 2023",{"2023":64834}],["Hilux","D/C 2,8 TDi 4X4 CONQUEST 6AT 2022",{"2023":58745,"2022":55947}],["Hilux","C/C 2,4 TDi 4X2 DX 6MT 2024",{"2025":31170,"2024":29685,"2023":28201}],["Hilux","C/S 2,4 TDi 4X2 DX 6MT 2024",{"2025":32863,"2024":31298,"2023":29733}],["Hilux","D/C 2,4 TDi 4X2 DX 6MT 2024",{"2025":38324,"2024":36499,"2023":34674}],["Hilux","D/C 2,4 TDi 4X2 SR 6MT 2024",{"2025":43923,"2024":41831,"2023":39740}],["Hilux","D/C 2,4 TDi 4X2 SR 6AT 2024",{"2025":45422,"2024":43259,"2023":41096}],["Hilux","D/C 2,8 TDi 4X2 SRV 6AT 2024",{"2025":53848,"2024":51283,"2023":48719}],["Hilux","D/C 2,8 TDi 4X2 SRX 6AT 2024",{"2025":60942,"2024":58040,"2023":55138}],["Hilux","C/C 2,4 TDi 4X4 DX 6MT 2024",{"2025":37297,"2024":35521,"2023":33745}],["Hilux","C/S 2,4 TDi 4X4 DX 6MT 2024",{"2025":38991,"2024":37134,"2023":35277}],["Hilux","D/C 2,4 TDi 4X4 DX 6MT 2024",{"2025":44744,"2024":42613,"2023":40483}],["Hilux","D/C 2,8 TDi 4X4 SR 6MT 2024",{"2025":52637,"2024":50130,"2023":47624}],["Hilux","D/C 2,8 TDi 4X4 SR 6AT 2024",{"2025":54432,"2024":51840,"2023":49248}],["Hilux","D/C 2,8 TDi 4X4 SRV 6MT 2024",{"2025":57676,"2024":54929,"2023":52183}],["Hilux","D/C 2,8 TDi 4X4 SRV 6AT 2024",{"2025":61096,"2024":58187,"2023":55278}],["Hilux","D/C 2,8 TDi 4X4 SRX 6AT 2024",{"2025":68175,"2024":64928,"2023":61682}],["Hilux","D/C 2,8 TDi 4X4 GR-S IV 6AT 2024",{"2025":75242,"2024":71659,"2023":68076}],["Hilux","C/C 2,4 TDi 4X2 DX 6MT HAR 2025",{"2025":32105,"2024":30576}],["Hilux","C/S 2,4 TDi 4X2 DX 6MT HAR 2025",{"0km":43771,"2025":33849,"2024":32237}],["Hilux","D/C 2,4 TDi 4X2 DX 6MT HAR 2025",{"0km":49325,"2025":39474,"2024":37594}],["Hilux","D/C 2,4 TDi 4X2 DX 6AT HAR 2025",{"0km":50704,"2025":40667,"2024":38730}],["Hilux","D/C 2,4 TDi 4X2 SR 6MT HAR 2025",{"2025":45241,"2024":43086}],["Hilux","D/C 2,4 TDi 4X2 SR 6AT HAR 2025",{"0km":59125,"2025":46785,"2024":44557}],["Hilux","D/C 2,8 TDi 4X2 SRV 6AT HAR 2025",{"0km":67506,"2025":55463,"2024":52822}],["Hilux","D/C 2,8 TDi 4X2 SRX 6AT HAR 2025",{"2025":62770,"2024":59781}],["Hilux","C/C 2,4 TDi 4X4 DX 6MT HAR 2025",{"0km":49927,"2025":38416,"2024":36587}],["Hilux","C/S 2,4 TDi 4X4 DX 6MT HAR 2025",{"0km":52618,"2025":40161,"2024":38248}],["Hilux","D/C 2,4 TDi 4X4 DX 6MT HAR 2025",{"0km":57769,"2025":46086,"2024":43892}],["Hilux","D/C 2,4 TDi 4X4 DX 6AT HAR 2025",{"0km":59383,"2025":47278,"2024":45027}],["Hilux","D/C 2,8 TDi 4X4 SR 6MT HAR 2025",{"0km":66457,"2025":54216,"2024":51634}],["Hilux","D/C 2,8 TDi 4X4 SR 6AT HAR 2025",{"0km":69326,"2025":56065,"2024":53395}],["Hilux","D/C 2,8 TDi 4X4 SRV 6MT HAR 2025",{"2025":59406,"2024":56577}],["Hilux","D/C 2,8 TDi 4X4 SRV 6AT HAR 2025",{"2025":62929,"2024":59932}],["Hilux","D/C 2,8 TDi 4X4 SRV + 6AT 2025",{"0km":79838,"2025":64813}],["Hilux","D/C 2,8 TDi 4X4 SRX 6AT HAR 2025",{"2025":70220,"2024":66876}],["Hilux","D/C 2,8 TDi 4X4 GR-S IV 6AT HAR 2025",{"0km":89327,"2025":77499,"2024":73809}],["SW4","5P 2,8 TDi SR 4X4",{"2018":35168}],["SW4","5P 2,8 TDi SRX 4X4 7A",{"2018":39425}],["SW4","5P 2,8 TDi SRX 4X4 7A AT",{"2018":41636}],["SW4","5P 2,8 TDi DIAMOND 4X4 7A AT",{"2018":48314}],["SW4","5P 2,8 TDi SR 4X4 2019",{"2020":49140,"2019":46970,"2018":45979}],["SW4","5P 2,8 TDi SRX 4X4 7A 2019",{"2019":48423,"2018":47401}],["SW4","5P 2,8 TDi SRX 4X4 7A AT 2019",{"2019":49588,"2018":48542}],["SW4","5P 2,8 TDi SRX 4X4 7A 2020",{"2021":53542,"2020":50992,"2019":49920}],["SW4","5P 2,8 TDi SRX 4X4 7A AT 2020",{"2021":54830,"2020":52219,"2019":51122}],["SW4","5P 2,8 TDi SR 4X4 6AT 2021",{"2023":63556,"2022":58848,"2021":53609,"2020":51056}],["SW4","5P 2,8 TDi SRX 4X4 6MT 7A 2021",{"2023":65754,"2022":60883,"2021":55463,"2020":52822}],["SW4","5P 2,8 TDi SRX 4X4 6AT 7A 2022",{"2023":67460,"2022":62463,"2021":56902,"2020":54192}],["SW4","5P 2,8 TDi SRX 4X4 6AT 7A 2024",{"2025":76140,"2024":72515,"2023":68889}],["SW4","5P 2,8 TDi DIAMOND 4X4 6AT 7A 2021",{"2023":69333,"2022":64197}],["SW4","5P 2,8 TDi GR-SPORT 4X4 6AT 7A 2021",{"2023":72820,"2022":67426,"2021":61423}],["SW4","5P 2,8 TDi SRX 4X4 6AT 7A HAR 2025",{"0km":91585,"2025":78007,"2024":74292}],["SW4","5P 2,8 TDi DIAMOND 4X4 6AT 7A HAR 2025",{"0km":92508,"2025":78787,"2024":75036}],["SW4","5P 2,8 TDi GR-SPORT 4X4 6AT 7A HAR 2025",{"0km":97092,"2025":82721,"2024":78782}],["Yaris","5P 1,5 CVT 7AT",{"2018":18205}],["Yaris","5P 1,5 XS 6MT",{"2019":16573,"2018":15352}],["Yaris","5P 1,5 XLS 6MT",{"2019":18216,"2018":16874}],["Yaris","5P 1,5 XLS PACK CVT",{"2019":20885,"2018":19347}],["Yaris","5P 1,5 S 6MT",{"2019":21477,"2018":19894}],["Yaris","5P 1,5 S CVT",{"2019":23082,"2018":21382}],["Yaris","5P 1,5 XS 6MT 2020",{"2020":17601}],["Yaris","5P 1,5 XLS 6MT 2020",{"2020":19297,"2019":18341}],["Yaris","5P 1,5 XLS CVT 2020",{"2020":20686}],["Yaris","5P 1,5 XLS PACK CVT 2020",{"2020":22078,"2019":21130}],["Yaris","5P 1,5 S 6MT 2020",{"2020":22778}],["Yaris","5P 1,5 S CVT 2020",{"2020":24335,"2019":23901}],["Yaris","5P 1,5 XS 6MT 2021",{"2021":19073,"2020":18334}],["Yaris","5P 1,5 XLS 6MT 2021",{"2021":20911,"2020":20101}],["Yaris","5P 1,5 XLS CVT 2021",{"2021":22415,"2020":21548}],["Yaris","5P 1,5 XLS PACK CVT 2021",{"2021":23924,"2020":22998}],["Yaris","5P 1,5 S 6MT 2021",{"2021":24683,"2020":23727}],["Yaris","5P 1,5 S CVT 2021",{"2021":26370,"2020":25349}],["Yaris","5P 1,5 XS 6MT 2022",{"2025":23235,"2024":22129,"2023":21224,"2022":19839}],["Yaris","5P 1,5 XS CVT 2023",{"0km":35354,"2025":25474,"2024":24261,"2023":23270}],["Yaris","5P 1,5 XLS 6MT 2022",{"2025":25474,"2024":24261,"2023":23270,"2022":21751}],["Yaris","5P 1,5 XLS CVT 2022",{"2025":27307,"2024":26007,"2023":24944,"2022":23316}],["Yaris","5P 1,5 XLS + CVT 2024",{"0km":39273,"2025":27784,"2024":26461}],["Yaris","5P 1,5 XLS PACK CVT 2022",{"2025":29145,"2024":27757,"2023":26623,"2022":24886}],["Yaris","5P 1,5 S CVT 2022",{"0km":42111,"2025":30889,"2024":29418,"2023":27947,"2022":26945}],["Yaris","4P 1,5 XS 6MT",{"2019":17587,"2018":16291}],["Yaris","4P 1,5 XLS 6MT",{"2019":19043,"2018":17640}],["Yaris","4P 1,5 XLS PACK CVT",{"2019":21713,"2018":20114}],["Yaris","4P 1,5 XS 6MT 2020",{"2020":18144}],["Yaris","4P 1,5 XLS 6MT 2020",{"2020":19756}],["Yaris","4P 1,5 XLS CVT 2020",{"2020":21144}],["Yaris","4P 1,5 XLS PACK CVT 2020",{"2020":22537}],["Yaris","4P 1,5 XS 6MT 2021",{"2020":18900}],["Yaris","4P 1,5 XLS 6MT 2021",{"2021":21408,"2020":20579}],["Yaris","4P 1,5 XLS CVT 2021",{"2021":22912,"2020":22025}],["Yaris","4P 1,5 XLS PACK CVT 2021",{"2021":24422,"2020":23476}],["Yaris","4P 1,5 XLS 6MT 2022",{"2025":26080,"2024":24838,"2023":23823,"2022":22268}],["Yaris","4P 1,5 XLS CVT 2022",{"2025":27913,"2024":26583,"2023":25497,"2022":23833}],["Yaris","4P 1,5 XLS PACK CVT 2022",{"2025":28607,"2024":27244,"2023":25882,"2022":23965}],["Yaris","3P 1,6 T GR",{"2025":77790,"2024":74085,"2023":70381,"2022":65168,"2021":62064}],["Yaris","3P 1,6 T GR 6MT 2025",{"0km":70000,"2025":80733}],["Yaris","3P 1,6 T GR 8AT 2025",{"0km":71800,"2025":82809}],["Yaris Cross","5P 1,5 XLI CVT",{"0km":41464}],["Yaris Cross","5P 1,5 XEI CVT",{"0km":45260}],["Yaris Cross","5P 1,5 SEG CVT",{"0km":50224}],["Yaris Cross","5P 1,5 XEI HEV eCVT",{"0km":48457}],["Yaris Cross","5P 1,5 SEG HEV eCVT",{"0km":54020}]]};
+var USADOS=[
+ {id:"cor",nombre:"Corolla XLI 2023",valor:28170000,cca:["Corolla","4P 2,0 XLI CVT 2020",2023]},
+ {id:"hil",nombre:"Hilux SRV 4x4 2022",valor:52800000,cca:["Hilux","D/C 2,8 TDi 4X4 SRV 6AT 2021",2022]},
+ {id:"yar",nombre:"Yaris XLS 2022",valor:24500000,cca:["Yaris","5P 1,5 XLS CVT 2022",2022]},
+ {id:"ccr",nombre:"Corolla Cross XEI 2023",valor:37000000,cca:["Corolla Cross","5P 2,0 XEI CVT",2023]}
+];
+var NUEVOS=[
+ {id:"seg",nombre:"Corolla SEG HEV 1.8 eCVT MY 2027",precio:56980000,promo:{texto:"TASA 0% hasta $25.000.000",tasa:0,tope:25000000}},
+ {id:"ccx",nombre:"Corolla Cross XEI 2.0 CVT",precio:47500000,promo:{texto:"TASA 0% hasta $20.000.000",tasa:0,tope:20000000}},
+ {id:"yar",nombre:"Yaris XLS 1.5 CVT",precio:31900000,promo:{texto:"TASA 12% hasta $15.000.000",tasa:12,tope:15000000}},
+ {id:"hil",nombre:"Hilux SRV 2.8 4x4 AT",precio:68900000,promo:null}
+];
+var LINKS=[
+ {t:"Guía de precios Infoauto",u:"https://www.infoauto.com.ar"},
+ {t:"Guía de precios CCA",u:"https://www.cca.org.ar"},
+ {t:"Sitio de Toyota Argentina",u:"https://www.toyota.com.ar"}
+];
+var DEFECTO={pct:15};
+
+/* ===== AJUSTES ===== */
+var cfg=cargar();
+function cargar(){try{return Object.assign({},DEFECTO,JSON.parse(localStorage.getItem("trh")||"{}"))}catch(e){return Object.assign({},DEFECTO)}}
+function guardar(){try{localStorage.setItem("trh",JSON.stringify(cfg))}catch(e){}}
+
+/* ===== UTILIDADES ===== */
+var $=function(i){return document.getElementById(i)};
+function pesos(n){return "$"+Math.round(n).toLocaleString("es-AR")}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+/* Normaliza teléfonos argentinos al formato internacional de WhatsApp (549 + área + número) */
+function normTel(t){
+ var d=String(t).replace(/\D/g,"").replace(/^0+/,"");
+ if(d.indexOf("549")===0)return d;
+ if(d.indexOf("54")===0)return "549"+d.slice(2);
+ if(d.length===12){ /* con "15" de celular: área de 2, 3 o 4 dígitos */
+  if(d.indexOf("11")===0&&d.substr(2,2)==="15")d=d.slice(0,2)+d.slice(4);
+  else if(d.substr(3,2)==="15")d=d.slice(0,3)+d.slice(5);   /* ej. 379 15 4123456 */
+  else if(d.substr(4,2)==="15")d=d.slice(0,4)+d.slice(6);
+  else if(d.substr(2,2)==="15")d=d.slice(0,2)+d.slice(4);
+ }
+ return d.length===10?"549"+d:"";
+}
+
+/* ===== CÁLCULO ===== */
+function calcular(u,n){
+ var toma=u.valor*(1-cfg.pct/100);
+ var dif=n.precio-toma;
+ var fin=(n.promo&&dif>0)?Math.min(n.promo.tope,dif):0;
+ return {toma:toma,dif:dif,fin:fin,saldo:Math.max(dif-fin,0)};
+}
+function ccaFila(m,v){return CCA.filas.filter(function(r){return r[0]===m&&r[1]===v})[0]}
+function ccaVal(m,v,a){var f=ccaFila(m,v);return f&&f[2][a]?f[2][a]*1000:null}
+function opts(l){return l.map(function(x){return '<option>'+esc(x)+'</option>'}).join("")}
+function initCca(){$("cm").innerHTML=opts(Array.from(new Set(CCA.filas.map(function(r){return r[0]}))));verCv()}
+function verCv(){var m=$("cm").value;$("cv").innerHTML=opts(CCA.filas.filter(function(r){return r[0]===m}).map(function(r){return r[1]}));verCa()}
+function verCa(){var f=ccaFila($("cm").value,$("cv").value);$("ca").innerHTML=f?opts(Object.keys(f[2]).filter(function(k){return k!=="0km"}).sort().reverse()):""}
+function usadoSel(){
+ var id=$("usado").value,nombre,inf=null,cc;
+ if(id==="__cca"){nombre=$("cm").value+" "+$("cv").value+" ("+$("ca").value+")";cc=ccaVal($("cm").value,$("cv").value,$("ca").value)}
+ else{var x=USADOS.filter(function(z){return z.id===id})[0];nombre=x.nombre;inf=x.valor;cc=ccaVal(x.cca[0],x.cca[1],x.cca[2])}
+ var usaInf=($("fuente").value==="inf"&&inf!==null)||cc===null;
+ return {nombre:nombre,inf:inf,cca:cc,valor:usaInf?inf:cc,fuente:usaInf?"Infoauto (datos de prueba)":"la guía CCA de "+CCA.mes}
+}
+function refs(u){
+ var t="Infoauto (prueba): "+(u.inf!==null?pesos(u.inf):"sin dato")+" · Guía CCA "+CCA.mes+": "+(u.cca!==null?pesos(u.cca):"sin dato");
+ if(u.inf!==null&&u.cca!==null){var d=u.cca-u.inf;t+=" · CCA vs Infoauto: "+(d<0?"−":"+")+pesos(Math.abs(d))+" ("+(d/u.inf*100).toFixed(1).replace(".",",")+"%)"}
+ $("refs").textContent=t+". Se usa para el cálculo: "+u.fuente+"."
+}
+var elegido=0;
+
+/* ===== PANTALLA ===== */
+function iniciar(){
+ $("usado").innerHTML=USADOS.map(function(u){return '<option value="'+u.id+'">'+esc(u.nombre)+"</option>"}).join("")+'<option value="__cca">Otro vehículo de la guía CCA…</option>';
+ $("nuevo").innerHTML='<option value="">Mostrar todas las alternativas</option>'+NUEVOS.map(function(n){return '<option value="'+n.id+'">'+esc(n.nombre)+"</option>"}).join("");
+ $("pct").value=cfg.pct;
+ ["cli","tel","usado","nuevo","fuente","ca"].forEach(function(i){$(i).addEventListener("input",function(){elegido=0;dibujar()})});
+ $("cm").addEventListener("input",function(){verCv();elegido=0;dibujar()});
+ $("cv").addEventListener("input",function(){verCa();elegido=0;dibujar()});
+ $("pct").addEventListener("input",function(){var v=parseFloat($("pct").value);if(!isNaN(v)&&v>=0&&v<=60){cfg.pct=v;guardar();dibujar()}});
+ $("reset").addEventListener("click",function(){cfg=Object.assign({},DEFECTO);guardar();$("pct").value=cfg.pct;dibujar()});
+ initCca();
+ $("copiar").addEventListener("click",copiar);
+ $("wa").addEventListener("click",abrirWa);
+ dibujar();
+}
+function lista(){var s=$("nuevo").value;return s?NUEVOS.filter(function(n){return n.id===s}):NUEVOS}
+
+function dibujar(){
+ $("cpick").hidden=$("usado").value!=="__cca";
+ var u=usadoSel(),L=lista();
+ refs(u);
+ if(elegido>=L.length)elegido=0;
+ $("tb").innerHTML=L.map(function(n,i){
+  var c=calcular(u,n);
+  return '<tr class="'+(i===elegido?"sel":"")+'"><td>'+esc(n.nombre)+'</td><td class="n">'+pesos(n.precio)+'</td><td class="n">'+pesos(c.toma)+'</td><td class="n">'+(c.dif>0?pesos(c.dif):"Sin diferencia")+'</td><td>'+(n.promo?esc(n.promo.texto):"Sin promoción")+'</td><td class="n">'+(c.fin?pesos(c.fin):"–")+'</td><td class="n big">'+pesos(c.saldo)+'</td><td><button type="button" data-i="'+i+'">'+(i===elegido?"En el mensaje":"Usar en mensaje")+"</button></td></tr>";
+ }).join("");
+ Array.prototype.forEach.call($("tb").querySelectorAll("button"),function(b){b.addEventListener("click",function(){elegido=+b.getAttribute("data-i");dibujar()})});
+ explicar(u,L[elegido]);
+ armarMensaje(u,L[elegido]);
+}
+
+function explicar(u,n){
+ var c=calcular(u,n),p=n.promo;
+ var pasos=[
+  "Valor de referencia de "+esc(u.nombre)+" según "+esc(u.fuente)+": <strong>"+pesos(u.valor)+"</strong>.",
+  "Se aplica el descuento de toma de "+cfg.pct+"%: "+pesos(u.valor)+" × "+(100-cfg.pct)/100+" = <strong>"+pesos(c.toma)+"</strong>.",
+  "Precio del "+esc(n.nombre)+": <strong>"+pesos(n.precio)+"</strong>.",
+  "Diferencia a cubrir: "+pesos(n.precio)+" − "+pesos(c.toma)+" = <strong>"+pesos(c.dif)+"</strong>."
+ ];
+ if(c.dif<=0)pasos.push("El valor del usado cubre el precio del 0 km.");
+ else if(p)pasos.push("Promoción vigente: "+esc(p.texto)+". Se financia el menor entre el tope y la diferencia: <strong>"+pesos(c.fin)+"</strong>. Saldo restante: "+pesos(c.dif)+" − "+pesos(c.fin)+" = <strong>"+pesos(c.saldo)+"</strong>.");
+ else pasos.push("Este modelo no tiene promoción de financiación cargada, por lo que el saldo es toda la diferencia.");
+ $("como").innerHTML="<ol>"+pasos.map(function(x){return "<li>"+x+"</li>"}).join("")+"</ol>"+
+  '<p class="mute">Valores estimados. La toma final está sujeta a peritaje del vehículo y a la decisión del Gerente Comercial; la financiación está sujeta a aprobación.</p>'+
+  '<p class="mute">Para corroborar: '+LINKS.map(function(l){return '<a href="'+l.u+'" target="_blank" rel="noopener">'+esc(l.t)+"</a>"}).join(" · ")+"</p>";
+}
+
+function armarMensaje(u,n){
+ var c=calcular(u,n),p=n.promo,nom=$("cli").value.trim()||"";
+ var t="Hola"+(nom?" "+nom:"")+", te cuento una propuesta para renovar tu "+u.nombre+".\n\n"+
+  "• Valor estimado de tu usado: "+pesos(c.toma)+"\n"+
+  "• "+n.nombre+": "+pesos(n.precio)+"\n";
+ if(c.dif<=0)t+="• Tu usado cubre el valor del 0 km.\n";
+ else{
+  t+="• Diferencia estimada: "+pesos(c.dif)+"\n";
+  if(p)t+="• Financiación: hasta "+pesos(c.fin)+" ("+(p.tasa===0?"TASA 0%":"tasa "+p.tasa+"%")+")\n• Saldo restante estimado: "+pesos(c.saldo)+"\n";
+ }
+ t+="\nValores estimados: la toma final está sujeta a peritaje y la financiación a aprobación. ¿Te armo la propuesta completa?";
+ $("msg").value=t;
+}
+
+/* ===== ACCIONES ===== */
+function aviso(t){$("estado").textContent=t;setTimeout(function(){$("estado").textContent=""},3500)}
+function copiar(){
+ var t=$("msg").value;
+ function respaldo(){$("msg").select();try{document.execCommand("copy");aviso("Texto copiado")}catch(e){aviso("No se pudo copiar: seleccioná el texto y copialo a mano")}}
+ if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(t).then(function(){aviso("Texto copiado")},respaldo);
+ else respaldo();
+}
+function abrirWa(){
+ var num=normTel($("tel").value),t=encodeURIComponent($("msg").value);
+ if(!num)aviso("Teléfono no válido: se abre WhatsApp sin número para elegir el contacto");
+ window.open("https://wa.me/"+num+"?text="+t,"_blank","noopener");
+}
+iniciar();
+</script>
+</body>
+</html>
